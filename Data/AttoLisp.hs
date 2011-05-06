@@ -35,10 +35,12 @@ import Control.DeepSeq (NFData(..))
 import Control.Monad
 import Data.Attoparsec.Char8 hiding ( Parser, Result, parse, string, double )
 import Data.Data
+import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.List ( foldl' )
+import Data.Ratio ( Ratio )
 import Data.Monoid
 import Data.String
-import Data.Word ( Word8 )
+import Data.Word ( Word, Word8, Word16, Word32, Word64 )
 import Numeric (showHex)
 import qualified Data.Attoparsec as A
 import qualified Data.Text as T
@@ -328,18 +330,47 @@ struct tag f (List (Symbol t:rest)) | t == tag =
   parseList (T.unpack tag) f rest
 struct tag _ e = typeMismatch (T.unpack tag ++ " object") e
 
+instance ToLisp Lisp where
+  toLisp = id
+  {-# INLINE toLisp #-}
+
+instance FromLisp Lisp where
+  parseLisp = pure
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Bool where
+  toLisp b = if b then Symbol "t" else nil
+  {-# INLINE toLisp #-}
+
+instance FromLisp Bool where
+  parseLisp e = if isNull e then pure False else pure True
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Char where
+  toLisp c = String (T.singleton c)
+  {-# INLINE toLisp #-}
+
+instance FromLisp Char where
+  parseLisp (String t)
+    | T.compareLength t 1 == EQ = pure (T.head t)
+  parseLisp e = typeMismatch "String" e
+  {-# INLINE parseLisp #-}
 
 instance ToLisp Integer where
   toLisp n = Number (fromInteger n)
+  {-# INLINE toLisp #-}
 
 instance FromLisp Integer where
   parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
 
 instance ToLisp Int where
   toLisp n = Number (fromIntegral n)
+  {-# INLINE toLisp #-}
 
 instance FromLisp Int where
   parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
 
 instance ToLisp T.Text where
   toLisp = String
@@ -347,21 +378,203 @@ instance ToLisp T.Text where
 instance FromLisp T.Text where
   parseLisp (String t) = pure t
   parseLisp e = typeMismatch "Text" e
+  {-# INLINE parseLisp #-}
 
 instance ToLisp () where
   toLisp () = List []
+  {-# INLINE toLisp #-}
 
 instance FromLisp () where
   parseLisp e | isNull e = pure ()
               | otherwise = typeMismatch "()" e
+  {-# INLINE parseLisp #-}
 
 instance ToLisp a => ToLisp (Maybe a) where
   toLisp Nothing = nil
   toLisp (Just a) = toLisp a
+  {-# INLINE toLisp #-}
 
 instance FromLisp a => FromLisp (Maybe a) where
   parseLisp e | isNull e = pure Nothing
   parseLisp e = Just <$> parseLisp e
+  {-# INLINE parseLisp #-}
+
+-- | No tag is used, hence type @a@ and @b@ must be different.
+instance (ToLisp a, ToLisp b) => ToLisp (Either a b) where
+  toLisp (Left a) = toLisp a
+  toLisp (Right b) = toLisp b
+  {-# INLINE toLisp #-}
+
+-- | Tries to parse @a@ or, if that fails, parses a @b@.
+instance (FromLisp a, FromLisp b) => FromLisp (Either a b) where
+  parseLisp e = Left <$> parseLisp e <|> Right <$> parseLisp e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp [Char] where
+  toLisp s = String (T.pack s)
+  {-# INLINE toLisp #-}
+
+instance FromLisp [Char] where
+  parseLisp (String t) = pure (T.unpack t)
+  parseLisp e = typeMismatch "String" e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Double where
+  toLisp = Number . D
+  {-# INLINE toLisp #-}
+
+instance FromLisp Double where
+  parseLisp (Number n) =
+    case n of
+      D d -> pure d
+      I i -> pure (fromIntegral i)
+  parseLisp e | isNull e = pure (0/0)  -- useful?
+  parseLisp e = typeMismatch "Double" e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Float where
+  toLisp = Number . fromRational . toRational
+  {-# INLINE toLisp #-}
+
+instance FromLisp Float where
+  parseLisp (Number n) =
+    case n of
+      D d -> pure (fromRational (toRational d))
+      I i -> pure (fromIntegral i)
+  parseLisp e | isNull e = pure (0/0)  -- useful?
+  parseLisp e = typeMismatch "Float" e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Number where
+  toLisp = Number
+  {-# INLINE toLisp #-}
+
+instance FromLisp Number where
+  parseLisp (Number n) = pure n
+  parseLisp e | isNull e = pure (D (0/0))  -- useful?
+  parseLisp e = typeMismatch "Number" e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp (Ratio Integer) where
+  toLisp = Number . fromRational
+  {-# INLINE toLisp #-}
+
+instance FromLisp (Ratio Integer) where
+  parseLisp (Number n) =
+    case n of
+      D d -> pure (toRational d)
+      I i -> pure (fromIntegral i)
+  parseLisp e = typeMismatch "Ratio Integer" e
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Int8 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Int8 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Int16 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Int16 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Int32 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Int32 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Int64 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Int64 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Word where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Word where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Word8 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Word8 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Word16 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Word16 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Word32 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Word32 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp Word64 where
+  toLisp = Number . fromIntegral
+  {-# INLINE toLisp #-}
+
+instance FromLisp Word64 where
+  parseLisp = parseIntegral
+  {-# INLINE parseLisp #-}
+
+instance ToLisp a => ToLisp [a] where
+  toLisp l = List (map toLisp l)
+  {-# INLINE toLisp #-}
+
+instance FromLisp a => FromLisp [a] where
+  parseLisp (List l) = mapM parseLisp l
+  parseLisp e = typeMismatch "list" e
+  {-# INLINE parseLisp #-}
+
+instance (ToLisp a, ToLisp b) => ToLisp (a, b) where
+  toLisp (a, b) = List [toLisp a, toLisp b]  -- TODO: could use dotted list
+  {-# INLINE toLisp #-}
+
+instance (FromLisp a, FromLisp b) => FromLisp (a, b) where
+  parseLisp (List l) =
+    case l of
+      [a, b] -> (,) <$> parseLisp a <*> parseLisp b
+      _ -> fail $ "Cannot unpack list into a pair"
+  parseLisp (DotList hds b) =
+    case hds of
+      [a] -> (,) <$> parseLisp a <*> parseLisp b
+      _ -> fail $ "Cannot unpack dotted list into a pair"
+  parseLisp e = typeMismatch "pair" e
+  {-# INLINE parseLisp #-}
+
+instance (ToLisp a, ToLisp b, ToLisp c) => ToLisp (a, b, c) where
+  toLisp (a, b, c) = List [toLisp a, toLisp b, toLisp c]
+  {-# INLINE toLisp #-}
+
+instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
+  parseLisp (List l) =
+    case l of
+      [a, b, c] -> (,,) <$> parseLisp a <*> parseLisp b <*> parseLisp c
+      _ -> fail $ "Cannot unpack list into a 3-tuple"
+  parseLisp e = typeMismatch "3-tuple" e
+  {-# INLINE parseLisp #-}
 
 {- --- TESTS ----------------------------------------------------
 data Msg = Msg T.Text Integer
