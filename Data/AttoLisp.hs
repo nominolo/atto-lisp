@@ -11,7 +11,7 @@ module Data.AttoLisp
   ( -- * Core Lisp Types
     Lisp(..), nil, isNull,
     -- * Type Conversion
-    FromLisp(..), Result(..),
+    FromLisp(..), Result(..), fromLisp,
     Failure, Success, Parser,
     parse, parseMaybe, parseEither, typeMismatch,
 
@@ -21,7 +21,7 @@ module Data.AttoLisp
     mkStruct,  struct,
 
     -- * Encoding and parsing
-    encode, fromLisp,
+    encode, fromLispExpr,
     
     lisp, atom,
   )
@@ -274,6 +274,9 @@ class ToLisp a where
 --
 class FromLisp a where
   parseLisp :: Lisp -> Parser a
+
+fromLisp :: FromLisp a => Lisp -> Result a
+fromLisp = parse parseLisp
 
 parseIntegral :: Integral a => Lisp -> Parser a
 parseIntegral (Number n) = pure (floor n)
@@ -707,8 +710,8 @@ unescapeString = Blaze.toByteString <$> go mempty where
       else rest
   mapping = "\"\\/\n\t\b\r\f"
 
-fromLisp :: Lisp -> Blaze.Builder
-fromLisp (String str) = string str
+fromLispExpr :: Lisp -> Blaze.Builder
+fromLispExpr (String str) = string str
  where
    string s = fromChar '"' `mappend` quote s `mappend` fromChar '"'
    quote q =
@@ -726,22 +729,22 @@ fromLisp (String str) = string str
         | c < '\x20' = Blaze.fromString $ "\\x" ++ replicate (2 - length h) '0' ++ h
         | otherwise  = fromChar c
         where h = showHex (fromEnum c) "" 
-fromLisp (Symbol t) = Blaze.fromText t
-fromLisp (Number n) = fromNumber n
-fromLisp (List []) = Blaze.fromByteString "nil"
-fromLisp (List l) = enc_list l (fromChar ')')
-fromLisp (DotList l t) =
-  enc_list l (Blaze.fromByteString " . " `mappend` fromLisp t `mappend` fromChar ')')
+fromLispExpr (Symbol t) = Blaze.fromText t
+fromLispExpr (Number n) = fromNumber n
+fromLispExpr (List []) = Blaze.fromByteString "nil"
+fromLispExpr (List l) = enc_list l (fromChar ')')
+fromLispExpr (DotList l t) =
+  enc_list l (Blaze.fromByteString " . " `mappend` fromLispExpr t `mappend` fromChar ')')
 
 enc_list :: [Lisp] -> Blaze.Builder -> Blaze.Builder
 enc_list [] tl = fromChar '(' `mappend` tl
-enc_list (x:xs) tl = fromChar '(' `mappend` fromLisp x `mappend` foldr f tl xs
- where f e t = fromChar ' ' `mappend` fromLisp e `mappend` t
+enc_list (x:xs) tl = fromChar '(' `mappend` fromLispExpr x `mappend` foldr f tl xs
+ where f e t = fromChar ' ' `mappend` fromLispExpr e `mappend` t
 
 fromNumber :: Number -> Blaze.Builder
 fromNumber (I i) = integral i
 fromNumber (D d) = double d
 
 encode :: ToLisp a => a -> Lazy.ByteString
-encode = Blaze.toLazyByteString . fromLisp . toLisp
+encode = Blaze.toLazyByteString . fromLispExpr . toLisp
 {-# INLINE encode #-}
