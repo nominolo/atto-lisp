@@ -46,6 +46,7 @@ tcase (T inp out) = testCase (show inp) $ assertEqual (show inp) out out2
 tests = [ T "()" (Right $ List [])
         , T "42" (Right $ Number 42)
         , T "(4 5 6)" (Right $ List [Number 4, Number 5, Number 6])
+        , T "(4 5 6 )" (Right $ List [Number 4, Number 5, Number 6])
         , T "(3 (4))" (Right $ List [Number 3, List [Number 4]])
         , T "\"a; however, b\"" (Right $ String "a; however, b")
         , T "(x ;comment\ny)" (Right $ List [Symbol "x", Symbol "y"])        , T "\"foo\"" (Right (String "foo"))
