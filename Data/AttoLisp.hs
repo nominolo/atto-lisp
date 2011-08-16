@@ -579,37 +579,6 @@ instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
   parseLisp e = typeMismatch "3-tuple" e
   {-# INLINE parseLisp #-}
 
-{- --- TESTS ----------------------------------------------------
-data Msg = Msg T.Text Integer
-  deriving (Eq, Show)
-
-instance ToLisp Msg where
-  toLisp (Msg t n) = mkStruct "msg" [toLisp t, toLisp n]
-
-instance FromLisp Msg where
-  parseLisp e = struct "msg" Msg e
-
-
-test_sexp1 = 
-  show (List [Number 42.2, Symbol "foo", "blah"]) == "(42.2 foo \"blah\")"
-
-test_msg1 = toLisp (Msg "foo" 42)
-test_msg2 = List [Symbol "msg"]
-test_msg3 = List [Symbol "msg", "bar", "baz"]
-
-test_parse :: IO ()
-test_parse = do
-  mapM_ (\inp ->
-           putStrLn $ show inp ++ " => " ++ show (A.parseOnly (lisp <* A.endOfInput) inp))
-    inputs
- where
-  inputs = ["()", "42", "(4 5 6)", "(3 (4))", "(3(4))",
-            "\"foo\"", "foo", "(foo \"bar\" 23)"]
-
-
-
--- -}
-
 {-
 
 We are using the standard Common Lisp read table.
