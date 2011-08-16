@@ -11,6 +11,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
 import Test.HUnit
+import Test.Framework.Providers.HUnit
+import Test.Framework
 
 data Msg = Msg T.Text Integer
   deriving (Eq, Show)
@@ -33,20 +35,19 @@ data T = T { tin  :: B.ByteString
            , tout :: Either String Lisp
            }
 
-test_parse :: IO ()
-test_parse = do
-  mapM_ (\inp -> do
-           let out = A.parseOnly (lisp <* A.endOfInput) (tin inp)
-           putStrLn $ show (tin inp) ++ " => " ++ show out 
-           assertEqual (show (tin inp)) (tout inp) out
-        )
-    inputs
+main :: IO ()
+main = defaultMain (map tcase tests)
+
+tcase :: T -> Test.Framework.Test
+tcase (T inp out) = testCase (show inp) $ assertEqual (show inp) out out2
  where
-  inputs = [ T "()" (Right $ List [])
-           , T "42" (Right $ Number 42)
-           , T "(4 5 6)" (Right $ List [Number 4, Number 5, Number 6])
-           , T "(3 (4))" (Right $ List [Number 3, List [Number 4]])
-           , T "\"foo\"" (Right (String "foo"))
-           , T "foo"     (Right (Symbol "foo"))
-           , T "(foo \"bar\" 23)" (Right $ List [Symbol "foo", String "bar", Number 23])
-           ]
+  out2 = A.parseOnly (lisp <* A.endOfInput) inp
+
+tests = [ T "()" (Right $ List [])
+        , T "42" (Right $ Number 42)
+        , T "(4 5 6)" (Right $ List [Number 4, Number 5, Number 6])
+        , T "(3 (4))" (Right $ List [Number 3, List [Number 4]])
+        , T "\"foo\"" (Right (String "foo"))
+        , T "foo"     (Right (Symbol "foo"))
+        , T "(foo \"bar\" 23)" (Right $ List [Symbol "foo", String "bar", Number 23])
+        ]
