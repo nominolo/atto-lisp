@@ -658,7 +658,7 @@ terminatingChar c =
 list_ :: A.Parser Lisp
 list_ = do
   skipSpace
-  elems <- (lisp `sepBy` skipSpace) <* char ')'
+  elems <- (lisp `sepBy` skipSpace) <* skipSpace <* char ')'
   return (List elems)
 
 doubleQuote :: Word8
