@@ -598,7 +598,7 @@ like an number then it is one.  Otherwise it's just a symbol.
 
 -- | Parse an arbitrary lisp expression.
 lisp :: A.Parser Lisp
-lisp = skipSpace *>
+lisp = skipLispSpace *>
   (char '(' *> list_ <|>
    String <$> (char '"' *> lstring_) <|>
    atom)
@@ -626,8 +626,8 @@ terminatingChar c =
 
 list_ :: A.Parser Lisp
 list_ = do
-  skipSpace
-  elems <- (lisp `sepBy` skipSpace) <* skipSpace <* char ')'
+  skipLispSpace
+  elems <- (lisp `sepBy` skipLispSpace) <* skipLispSpace <* char ')'
   return (List elems)
 
 doubleQuote :: Word8
@@ -638,6 +638,15 @@ backslash :: Word8
 backslash = 92
 {-# INLINE backslash #-}
 
+skipLispSpace :: A.Parser ()
+skipLispSpace = skipSpace >> optional comment >> skipSpace
+
+comment :: A.Parser ()
+comment = do
+  char ';'
+  A.many (notChar '\n')
+  end <- atEnd
+  if end then char '\n' >> return () else return ()
 
 -- | Parse a string without a leading quote.
 lstring_ :: A.Parser T.Text
