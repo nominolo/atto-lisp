@@ -579,37 +579,6 @@ instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
   parseLisp e = typeMismatch "3-tuple" e
   {-# INLINE parseLisp #-}
 
-{- --- TESTS ----------------------------------------------------
-data Msg = Msg T.Text Integer
-  deriving (Eq, Show)
-
-instance ToLisp Msg where
-  toLisp (Msg t n) = mkStruct "msg" [toLisp t, toLisp n]
-
-instance FromLisp Msg where
-  parseLisp e = struct "msg" Msg e
-
-
-test_sexp1 = 
-  show (List [Number 42.2, Symbol "foo", "blah"]) == "(42.2 foo \"blah\")"
-
-test_msg1 = toLisp (Msg "foo" 42)
-test_msg2 = List [Symbol "msg"]
-test_msg3 = List [Symbol "msg", "bar", "baz"]
-
-test_parse :: IO ()
-test_parse = do
-  mapM_ (\inp ->
-           putStrLn $ show inp ++ " => " ++ show (A.parseOnly (lisp <* A.endOfInput) inp))
-    inputs
- where
-  inputs = ["()", "42", "(4 5 6)", "(3 (4))", "(3(4))",
-            "\"foo\"", "foo", "(foo \"bar\" 23)"]
-
-
-
--- -}
-
 {-
 
 We are using the standard Common Lisp read table.
@@ -629,7 +598,7 @@ like an number then it is one.  Otherwise it's just a symbol.
 
 -- | Parse an arbitrary lisp expression.
 lisp :: A.Parser Lisp
-lisp = skipSpace *>
+lisp = skipLispSpace *>
   (char '(' *> list_ <|>
    String <$> (char '"' *> lstring_) <|>
    atom)
@@ -657,8 +626,8 @@ terminatingChar c =
 
 list_ :: A.Parser Lisp
 list_ = do
-  skipSpace
-  elems <- (lisp `sepBy` skipSpace) <* skipSpace <* char ')'
+  skipLispSpace
+  elems <- (lisp `sepBy` skipLispSpace) <* skipLispSpace <* char ')'
   return (List elems)
 
 doubleQuote :: Word8
@@ -669,6 +638,14 @@ backslash :: Word8
 backslash = 92
 {-# INLINE backslash #-}
 
+skipLispSpace :: A.Parser ()
+skipLispSpace = skipSpace >> optional comment >> skipSpace
+
+comment :: A.Parser ()
+comment = do
+  _ <- char ';' >> A.many (notChar '\n')
+  end <- atEnd
+  if end then char '\n' >> return () else return ()
 
 -- | Parse a string without a leading quote.
 lstring_ :: A.Parser T.Text
