@@ -600,8 +600,11 @@ like an number then it is one.  Otherwise it's just a symbol.
 lisp :: A.Parser Lisp
 lisp = skipLispSpace *>
   (char '(' *> list_ <|>
+   quoted <$> (char '\'' *> char '(' *> list_) <|>
    String <$> (char '"' *> lstring_) <|>
    atom)
+ where
+  quoted l = List [Symbol "quote", l]
 
 -- | Parse a symbol or a number.  Symbols are expected to be utf8.
 --
