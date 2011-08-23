@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings, Rank2Types, DeriveDataTypeable, BangPatterns,
-             MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
+{-# LANGUAGE OverloadedStrings, Rank2Types, DeriveDataTypeable, BangPatterns #-}
+-- The following is for the ParseList stuff
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
              UndecidableInstances #-}
 -- | Efficient parsing and serialisation of S-Expressions (as used by Lisp).
 --
@@ -51,6 +52,7 @@ import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.Attoparsec.Zepto as Z
 import qualified Blaze.ByteString.Builder as Blaze
 import qualified Blaze.ByteString.Builder.Char.Utf8 as Blaze
+import qualified Data.Map as M
 -- | A Lisp expression (S-expression).
 --
 -- Symbols are case-sensitive.
@@ -578,6 +580,12 @@ instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
       _ -> fail $ "Cannot unpack list into a 3-tuple"
   parseLisp e = typeMismatch "3-tuple" e
   {-# INLINE parseLisp #-}
+
+instance (ToLisp a, ToLisp b) => ToLisp (M.Map a b) where
+  toLisp mp = toLisp [ (toLisp k, toLisp v) | (k,v) <- M.toList mp ]
+
+instance (Ord a, FromLisp a, FromLisp b) => FromLisp (M.Map a b) where
+  parseLisp e = M.fromList <$> parseLisp e
 
 {-
 
