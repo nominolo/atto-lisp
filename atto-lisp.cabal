@@ -1,5 +1,5 @@
 name:                   atto-lisp
-version:                0.2
+version:                0.2.1
 license:                BSD3
 license-file:           LICENSE
 author:                 Thomas Schilling <nominolo@googlemail.com>
