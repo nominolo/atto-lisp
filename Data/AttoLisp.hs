@@ -687,7 +687,7 @@ skipLispSpace = skipSpace >> optional comment >> skipSpace
 
 comment :: A.Parser ()
 comment = do
-  _ <- char ';' >> A.many (notChar '\n')
+  _ <- char ';' >> Control.Applicative.many (notChar '\n')
   end <- atEnd
   if end then char '\n' >> return () else return ()
 
