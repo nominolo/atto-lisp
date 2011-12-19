@@ -1,6 +1,7 @@
-{-# LANGUAGE OverloadedStrings, Rank2Types, DeriveDataTypeable, BangPatterns,
-             MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
-             UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings, Rank2Types, DeriveDataTypeable, BangPatterns #-}
+-- The following is for the ParseList stuff
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
+             UndecidableInstances, ScopedTypeVariables, OverlappingInstances, EmptyDataDecls #-}
 -- | Efficient parsing and serialisation of S-Expressions (as used by Lisp).
 --
 -- This module is intended to be imported qualified, e.g.:
@@ -51,6 +52,7 @@ import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.Attoparsec.Zepto as Z
 import qualified Blaze.ByteString.Builder as Blaze
 import qualified Blaze.ByteString.Builder.Char.Utf8 as Blaze
+import qualified Data.Map as M
 -- | A Lisp expression (S-expression).
 --
 -- Symbols are case-sensitive.
@@ -303,15 +305,48 @@ typeMismatch expected actual =
 class ParseList a b | a -> b where
   parseList :: String -> a -> [Lisp] -> Parser b
 
-instance (FromLisp a, ParseList b c) => ParseList (a -> b) c where
-  parseList msg _ []     = fail $ "Too few arguments for object: " ++ msg
-  parseList msg f (x:xs) = do
+instance (IsFunction a f, ParseList' f a b) => ParseList a b where
+  parseList = parseList' (undefined :: f)
+
+class ParseList' f a b | f a -> b where
+  parseList' :: f -> String -> a -> [Lisp] -> Parser b
+
+instance (FromLisp a, IsFunction b f, ParseList' f b c, ParseList b c)
+  => ParseList' HTrue (a -> b) c where
+  parseList' _ msg _ []     = fail $ "Too few arguments for object: " ++ msg
+  parseList' _ msg f (x:xs) = do
     y <- parseLisp x
     parseList msg (f y) xs
 
-instance ParseList a a where
-  parseList _msg r [] = return r
-  parseList msg  _ (_:_) = fail $ "Too many arguments for object: " ++ msg
+instance ParseList' HFalse a a where
+  parseList' _ _msg r [] = return r
+  parseList' _ msg  _ (_:_) = fail $ "Too many arguments for object: " ++ msg
+
+data HTrue
+data HFalse
+
+class IsFunction a b | a -> b
+
+instance TypeCast f HTrue => IsFunction (x -> y) f
+instance TypeCast f HFalse => IsFunction a f
+
+class TypeCast a b | a -> b, b -> a where
+  typeCast :: a -> b
+
+class TypeCast' t a b | t a -> b, t b -> a where
+  typeCast' :: t -> a -> b
+
+class TypeCast'' t a b | t a -> b, t b -> a where
+  typeCast'' :: t -> a -> b
+
+instance TypeCast' () a b => TypeCast a b where
+  typeCast x = typeCast' () x
+
+instance TypeCast'' t a b => TypeCast' t a b where
+  typeCast' = typeCast''
+
+instance TypeCast'' () a a where
+  typeCast'' _ x  = x
 
 -- | Decode structure serialised with 'mkStruct'.
 --
@@ -578,6 +613,12 @@ instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
       _ -> fail $ "Cannot unpack list into a 3-tuple"
   parseLisp e = typeMismatch "3-tuple" e
   {-# INLINE parseLisp #-}
+
+instance (ToLisp a, ToLisp b) => ToLisp (M.Map a b) where
+  toLisp mp = toLisp [ (toLisp k, toLisp v) | (k,v) <- M.toList mp ]
+
+instance (Ord a, FromLisp a, FromLisp b) => FromLisp (M.Map a b) where
+  parseLisp e = M.fromList <$> parseLisp e
 
 {-
 
