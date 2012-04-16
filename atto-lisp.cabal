@@ -1,5 +1,5 @@
 name:                   atto-lisp
-version:                0.2.1
+version:                0.2.1.1
 license:                BSD3
 license-file:           LICENSE
 author:                 Thomas Schilling <nominolo@googlemail.com>
@@ -15,13 +15,13 @@ cabal-version:          >= 1.6
 
 library
   build-depends:
-    attoparsec    >= 0.8.5.1 && < 0.10,
+    attoparsec    >= 0.8.5.1 && < 0.11,
     base          >= 4.2     && < 5,
     blaze-builder >= 0.3     && < 0.4,
     blaze-textual >= 0.1     && < 0.3,
     bytestring    >= 0.9     && < 0.10,
     containers    >= 0.3     && < 0.5,
-    deepseq       >= 1.1     && < 1.2,
+    deepseq       >= 1.1     && < 1.4,
     text          >= 0.10    && < 0.12
 
   exposed-modules:
