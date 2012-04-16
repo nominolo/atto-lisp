@@ -11,7 +11,7 @@ description:
 category:               Text, Data
 stability:              provisional
 build-type:             Simple
-cabal-version:          >= 1.6
+cabal-version:          >= 1.10
 
 library
   build-depends:
@@ -28,3 +28,18 @@ library
     Data.AttoLisp
 
   ghc-options: -Wall
+  default-language: Haskell2010
+
+Test-Suite test
+    Type:       exitcode-stdio-1.0
+    Main-is:    test.hs
+    Hs-Source-Dirs: test 
+    Build-depends: atto-lisp
+                 , attoparsec
+                 , base
+                 , bytestring
+                 , text 
+                 , HUnit
+                 , test-framework
+                 , test-framework-hunit
+    Default-language: Haskell2010

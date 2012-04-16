@@ -2,7 +2,7 @@
              MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
              UndecidableInstances #-}
 
-module Data.AttoLisp.Test where
+module Main where
 
 import Control.Applicative
 import Data.AttoLisp
