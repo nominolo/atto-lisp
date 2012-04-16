@@ -32,7 +32,7 @@ library
 
 Test-Suite test
     Type:       exitcode-stdio-1.0
-    Main-is:    test.hs
+    Main-is:    test-attolisp.hs
     Hs-Source-Dirs: test 
     Build-depends: atto-lisp
                  , attoparsec
