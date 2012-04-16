@@ -683,7 +683,8 @@ backslash = 92
 {-# INLINE backslash #-}
 
 skipLispSpace :: A.Parser ()
-skipLispSpace = skipSpace >> optional comment >> skipSpace
+skipLispSpace =
+  skipSpace >> many (comment >> skipSpace) >> return ()
 
 comment :: A.Parser ()
 comment = do
