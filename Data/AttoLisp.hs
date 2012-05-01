@@ -684,7 +684,9 @@ backslash = 92
 
 skipLispSpace :: A.Parser ()
 skipLispSpace =
-  skipSpace >> many (comment >> skipSpace) >> return ()
+  skipSpace >>
+  Control.Applicative.many (comment >> skipSpace) >>
+  return ()
 
 comment :: A.Parser ()
 comment = do
