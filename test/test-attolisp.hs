@@ -10,6 +10,7 @@ import qualified Data.Attoparsec as A
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
 import Test.HUnit
 import Test.Framework.Providers.HUnit
 import Test.Framework
@@ -39,8 +40,9 @@ main :: IO ()
 main = defaultMain (map tcase tests)
 
 tcase :: T -> Test.Framework.Test
-tcase (T inp out) = testCase (show inp) $ assertEqual (show inp) out out2
+tcase (T inp out) = testCase inpStr $ assertEqual inpStr out out2
  where
+  inpStr = BC.unpack inp
   out2 = A.parseOnly (lisp <* A.endOfInput) inp
 
 tests = [ T "()" (Right $ List [])
