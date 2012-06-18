@@ -34,7 +34,7 @@ import Blaze.Text (double, integral)
 import Control.Applicative
 import Control.DeepSeq (NFData(..))
 import Control.Monad
-import Data.Attoparsec.Char8 hiding ( Parser, Result, parse, string, double )
+import Data.Attoparsec.Char8 hiding ( Parser, Result, parse, string, double, number )
 import Data.Data
 import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.List ( foldl' )
@@ -44,6 +44,7 @@ import Data.String
 import Data.Word ( Word, Word8, Word16, Word32, Word64 )
 import Numeric (showHex)
 import qualified Data.Attoparsec as A
+import qualified Data.Attoparsec.Char8 as AC
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Unsafe as B
@@ -648,22 +649,87 @@ lisp = skipLispSpace *>
   quoted l = List [Symbol "quote", l]
 
 -- | Parse a symbol or a number.  Symbols are expected to be utf8.
---
--- TODO: support escapes in symbols
 atom :: A.Parser Lisp
-atom = do
-  sym <- takeWhile1 (\c -> not (terminatingChar c))
-  -- If it looks like a number it is parsed as a number.
-  let !w = B.unsafeIndex sym 0
-  if (w >= 48 && w <= 57) ||  -- digit
-     w == 43 || w == 45       -- '+' or '-'
-   then do
-     case A.parseOnly number sym of
-       Left _  -> pure (Symbol (T.decodeUtf8 sym))
-       Right n -> pure (Number n)
-   else
-     pure (Symbol (T.decodeUtf8 sym))
-   
+atom = number <|> symbol
+
+number :: A.Parser Lisp
+number = do
+  sym <- takeWhile1 (not . terminatingChar)
+  case A.parseOnly AC.number sym of
+      Left _  -> fail "Not a number"
+      Right n -> return (Number n)
+
+symbol :: A.Parser Lisp
+symbol = Symbol <$> sym
+ where
+  sym = suffix
+    <|> do { p1 <- part; option p1 (T.append p1 <$> suffix) }
+  suffix = T.append <$> psep <*> part
+  psep = do
+    c  <- char ':'
+    c2 <- option [] (pure <$> char ':')
+    pure $ T.pack (c:c2)
+  part = multiEscPart <|> basicPart
+
+-- | Parse a multi-escaped symbol part (the part could either be the
+--   package name or the symbol itself), that is, anything between unescaped
+--   vertical bars, e.g.
+--
+--   * |foo|
+--
+--   * |foo ) bar|
+--
+--   * |foo \| bar|
+--
+--   We return the whole thing unadulterated, vertical bars and all.
+--   Symbols are expected to be utf8.
+multiEscPart :: A.Parser T.Text
+multiEscPart = do
+  vb <- char8 '|'
+  (T.decodeUtf8 . B.cons vb) <$> chunk
+ where
+  stop c = c == backslash || c == verticalBar
+  chunk = do
+    p1  <- A.takeWhile (not . stop)
+    p2  <- Data.Attoparsec.Char8.take 1
+    case p2 of
+       "|"  -> return (p1 `B.append` p2)
+       "\\" -> do { p3 <- Data.Attoparsec.Char8.take 1
+                  ; B.append (p1 `B.append` p2 `B.append` p3) <$> chunk
+                  }
+       _    -> error "Data.AttoLisp: should be impossible to have gotten something other than '\\' or | here"
+
+-- | Parse a non-multi-escaped symbol part (the part could either be the
+--   package name or the symbol itself)
+--   Symbols are expected to be utf8.
+basicPart :: A.Parser T.Text
+basicPart = do
+  sym <- takeWhile1 (not . stop)
+  let !lst = B.last sym
+  if isSingleEsc lst
+     then -- single-escaped symbol: read more stuff
+         (decodeSym . B.append sym) <$> chunk
+     else -- other cases, eg. foo, |bar|
+         pure (decodeSym sym)
+ where
+  stop c = terminatingChar c || c == '|' || c == ':'
+  isSingleEsc w = w == backslash
+  -- parts of an atom that follow a single escape
+  -- so given something like x\yz, this handles the
+  -- parsing of yz
+  chunk = do
+    escapee <- A.take 1
+    done    <- atEnd
+    if done then pure escapee else do
+    rest    <- takeWhile1 (not . terminatingChar)
+    let !lst  = B.last rest
+        !pref = escapee `B.append` rest
+    if lst == backslash
+       then B.append pref <$> chunk
+       else pure pref
+  --
+  decodeSym = T.decodeUtf8
+
 terminatingChar :: Char -> Bool
 terminatingChar c =
   c == ',' || c == '(' || c == ')' || c == '\'' || c == ';' || c == '`' || isSpace c
@@ -681,6 +747,10 @@ doubleQuote = 34
 backslash :: Word8
 backslash = 92
 {-# INLINE backslash #-}
+
+verticalBar :: Word8
+verticalBar = 124
+{-# INLINE verticalBar #-}
 
 skipLispSpace :: A.Parser ()
 skipLispSpace =
