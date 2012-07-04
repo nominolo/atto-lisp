@@ -40,6 +40,7 @@ main :: IO ()
 main = defaultMain
  [ testSimple
  , testTokens
+ , testParseLisp
  ]
 
 tcase :: T -> Test.Framework.Test
@@ -134,3 +135,19 @@ addPkg p t = t { tin  = BC.concat [ p, ":", tin t ]
   tweak Nothing           = Nothing
   tweak (Just (Symbol x)) = Just . Symbol $ T.concat [T.decodeUtf8 p, ":", x]
   tweak (Just x)          = Nothing
+
+-- ----------------------------------------------------------------------
+-- From Lisp to Haskell
+-- ----------------------------------------------------------------------
+
+testParseLisp = testGroup "parseLisp"
+  [ tc "Maybe Just"   (Just (Just 3  :: Maybe Int)) "3"
+  , tc "Maybe case 1" (Just (Nothing :: Maybe Int)) "nil"
+  , tc "Maybe case 2" (Just (Nothing :: Maybe Int)) "NIL"
+  ]
+ where
+  tc descr res inp =
+    testCase msg $ assertParse "" res (parse inp)
+   where
+    msg = BC.unpack $ BC.concat [descr, " (", inp, ")" ]
+  parse i = A.parseOnly (lisp <* A.endOfInput) i >>= parseEither parseLisp

@@ -95,8 +95,8 @@ instance NFData Lisp where
 
 -- | Returns 'True' if the expression is @nil@ or the empty list.
 isNull :: Lisp -> Bool
-isNull (List []) = True
-isNull (Symbol "nil") = True
+isNull (List [])  = True
+isNull (Symbol n) = T.toLower n == "nil"
 isNull _ = False
 
 -- | The empty list.
