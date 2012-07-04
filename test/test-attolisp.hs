@@ -25,13 +25,6 @@ instance FromLisp Msg where
   parseLisp e = struct "msg" Msg e
 
 
-test_sexp1 = 
-  show (List [Number 42.2, Symbol "foo", "blah"]) == "(42.2 foo \"blah\")"
-
-test_msg1 = toLisp (Msg "foo" 42)
-test_msg2 = List [Symbol "msg"]
-test_msg3 = List [Symbol "msg", "bar", "baz"]
-
 data T = T { tin  :: B.ByteString
            , tout :: Maybe Lisp
            }
@@ -41,6 +34,7 @@ main = defaultMain
  [ testSimple
  , testTokens
  , testParseLisp
+ , testShow
  ]
 
 tcase :: T -> Test.Framework.Test
@@ -144,6 +138,9 @@ testParseLisp = testGroup "parseLisp"
   [ tc "Maybe Just"   (Just (Just 3  :: Maybe Int)) "3"
   , tc "Maybe case 1" (Just (Nothing :: Maybe Int)) "nil"
   , tc "Maybe case 2" (Just (Nothing :: Maybe Int)) "NIL"
+  , tc "Msg 1"        (Nothing :: Maybe Msg)        "(msg)"
+  , tc "Msg 2"        (Nothing :: Maybe Msg)        "(msg bar baz)"
+  , tc "Msg 3"        (Just (Msg "foo" 42))         "(msg \"foo\" 42)"
   ]
  where
   tc descr res inp =
@@ -151,3 +148,14 @@ testParseLisp = testGroup "parseLisp"
    where
     msg = BC.unpack $ BC.concat [descr, " (", inp, ")" ]
   parse i = A.parseOnly (lisp <* A.endOfInput) i >>= parseEither parseLisp
+
+-- ----------------------------------------------------------------------
+-- Displaying Lisp
+-- ----------------------------------------------------------------------
+
+testShow = testGroup "show"
+  [ tc "(42.2 foo \"blah\")" (List [Number 42.2, Symbol "foo", "blah"])
+  , tc "(msg \"foo\" 42)"    (toLisp (Msg "foo" 42))
+  ]
+ where
+  tc res inp = testCase res $ assertEqual "" res (show inp)
