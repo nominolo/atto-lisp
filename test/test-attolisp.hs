@@ -54,7 +54,7 @@ testSimple = testGroup "simple" $ map tcase
   , T "42blop" (Just $ Symbol "42blop")
   , T "3e3"  (Just $ Number 3000)
   , T "3e3e" (Just $ Symbol "3e3e")
-  , T "3e"   (Just $ Symbol "3e3e")
+  , T "3e"   (Just $ Symbol "3e")
   , T ";;foo\n42" (Just $ Number 42)
   , T ";;foo\n;;bar\n42" (Just $ Number 42)
   , T "(4 5 6)" (Just $ List [Number 4, Number 5, Number 6])
