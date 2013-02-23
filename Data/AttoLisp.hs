@@ -721,12 +721,12 @@ basicPart = do
     escapee <- A.take 1
     done    <- atEnd
     if done then pure escapee else do
-    rest    <- takeWhile1 (not . terminatingChar)
-    let !lst  = B.last rest
-        !pref = escapee `B.append` rest
-    if lst == backslash
-       then B.append pref <$> chunk
-       else pure pref
+      rest    <- takeWhile1 (not . terminatingChar)
+      let !lst  = B.last rest
+          !pref = escapee `B.append` rest
+      if lst == backslash
+        then B.append pref <$> chunk
+        else pure pref
   --
   decodeSym = T.decodeUtf8
 
