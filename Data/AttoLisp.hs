@@ -95,8 +95,8 @@ instance NFData Lisp where
 
 -- | Returns 'True' if the expression is @nil@ or the empty list.
 isNull :: Lisp -> Bool
-isNull (List []) = True
-isNull (Symbol "nil") = True
+isNull (List [])  = True
+isNull (Symbol n) = T.toLower n == "nil"
 isNull _ = False
 
 -- | The empty list.
@@ -655,9 +655,21 @@ atom = number <|> symbol
 number :: A.Parser Lisp
 number = do
   sym <- takeWhile1 (not . terminatingChar)
+  unless (isNumlike sym) $ fail "Not a number"
   case A.parseOnly AC.number sym of
       Left _  -> fail "Not a number"
       Right n -> return (Number n)
+ where
+  isNumlike x = B.all (`elem` numchars) x
+                   && length exps < 2
+                   && lpos `notElem` exps
+    where
+      exps = B.findIndices (`elem` expchars) x
+      lpos = B.length x - 1 -- last char
+  -- map ord "+-.0123456789" ++ expchars
+  numchars   = [43,45,46,48,49,50,51,52,53,54,55,56,57] ++ expchars
+  -- map ord "esfdlESFDL"
+  expchars   = [101,115,102,100,108,69,83,70,68,76]
 
 symbol :: A.Parser Lisp
 symbol = Symbol <$> sym
@@ -725,8 +737,8 @@ basicPart = do
       let !lst  = B.last rest
           !pref = escapee `B.append` rest
       if lst == backslash
-        then B.append pref <$> chunk
-        else pure pref
+         then B.append pref <$> chunk
+         else pure pref
   --
   decodeSym = T.decodeUtf8
 
