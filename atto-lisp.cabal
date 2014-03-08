@@ -15,14 +15,14 @@ cabal-version:          >= 1.10
 
 library
   build-depends:
-    attoparsec    >= 0.8.5.1 && < 0.11,
+    attoparsec    >= 0.8.5.1 && < 0.12,
     base          >= 4.2     && < 5,
     blaze-builder >= 0.3     && < 0.4,
     blaze-textual >= 0.1     && < 0.3,
     bytestring    >= 0.9     && < 0.11,
     containers    >= 0.3     && < 0.6,
     deepseq       >= 1.1     && < 1.4,
-    text          >= 0.10    && < 0.12
+    text          >= 0.10    && < 1.2
 
   exposed-modules:
     Data.AttoLisp
