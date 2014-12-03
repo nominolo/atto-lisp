@@ -34,7 +34,7 @@ import Blaze.Text (double, integral)
 import Control.Applicative
 import Control.DeepSeq (NFData(..))
 import Control.Monad
-import Data.Attoparsec.Char8 hiding ( Parser, Result, parse, string, double, number )
+import Data.Attoparsec.Number (Number(..))
 import Data.Data
 import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.List ( foldl' )
@@ -43,8 +43,8 @@ import Data.Monoid
 import Data.String
 import Data.Word ( Word, Word8, Word16, Word32, Word64 )
 import Numeric (showHex)
-import qualified Data.Attoparsec as A
-import qualified Data.Attoparsec.Char8 as AC
+import qualified Data.Attoparsec.ByteString as A
+import qualified Data.Attoparsec.ByteString.Char8 as AC
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Unsafe as B
@@ -54,9 +54,14 @@ import qualified Data.Attoparsec.Zepto as Z
 import qualified Blaze.ByteString.Builder as Blaze
 import qualified Blaze.ByteString.Builder.Char.Utf8 as Blaze
 import qualified Data.Map as M
+
 -- | A Lisp expression (S-expression).
 --
 -- Symbols are case-sensitive.
+--
+-- NOTE: The 'Number' type is deprecated in "attoparsec", so a future version of
+-- "atto-lisp" will switch to the @Scientific@ type from the "scientific"
+-- package.
 data Lisp
   = Symbol T.Text   -- ^ A symbol (including keyword)
   | String T.Text   -- ^ A string.
@@ -641,9 +646,9 @@ like an number then it is one.  Otherwise it's just a symbol.
 -- | Parse an arbitrary lisp expression.
 lisp :: A.Parser Lisp
 lisp = skipLispSpace *>
-  (char '(' *> list_ <|>
-   quoted <$> (char '\'' *> char '(' *> list_) <|>
-   String <$> (char '"' *> lstring_) <|>
+  (AC.char '(' *> list_ <|>
+   quoted <$> (AC.char '\'' *> AC.char '(' *> list_) <|>
+   String <$> (AC.char '"' *> lstring_) <|>
    atom)
  where
   quoted l = List [Symbol "quote", l]
@@ -654,7 +659,7 @@ atom = number <|> symbol
 
 number :: A.Parser Lisp
 number = do
-  sym <- takeWhile1 (not . terminatingChar)
+  sym <- AC.takeWhile1 (not . terminatingChar)
   case A.parseOnly AC.number sym of
       Left _  -> fail "Not a number"
       Right n -> return (Number n)
@@ -663,11 +668,11 @@ symbol :: A.Parser Lisp
 symbol = Symbol <$> sym
  where
   sym = suffix
-    <|> do { p1 <- part; option p1 (T.append p1 <$> suffix) }
+    <|> do { p1 <- part; AC.option p1 (T.append p1 <$> suffix) }
   suffix = T.append <$> psep <*> part
   psep = do
-    c  <- char ':'
-    c2 <- option [] (pure <$> char ':')
+    c  <- AC.char ':'
+    c2 <- AC.option [] (pure <$> AC.char ':')
     pure $ T.pack (c:c2)
   part = multiEscPart <|> basicPart
 
@@ -685,16 +690,16 @@ symbol = Symbol <$> sym
 --   Symbols are expected to be utf8.
 multiEscPart :: A.Parser T.Text
 multiEscPart = do
-  vb <- char8 '|'
+  vb <- AC.char8 '|'
   (T.decodeUtf8 . B.cons vb) <$> chunk
  where
   stop c = c == backslash || c == verticalBar
   chunk = do
     p1  <- A.takeWhile (not . stop)
-    p2  <- Data.Attoparsec.Char8.take 1
+    p2  <- AC.take 1
     case p2 of
        "|"  -> return (p1 `B.append` p2)
-       "\\" -> do { p3 <- Data.Attoparsec.Char8.take 1
+       "\\" -> do { p3 <- AC.take 1
                   ; B.append (p1 `B.append` p2 `B.append` p3) <$> chunk
                   }
        _    -> error "Data.AttoLisp: should be impossible to have gotten something other than '\\' or | here"
@@ -704,7 +709,7 @@ multiEscPart = do
 --   Symbols are expected to be utf8.
 basicPart :: A.Parser T.Text
 basicPart = do
-  sym <- takeWhile1 (not . stop)
+  sym <- AC.takeWhile1 (not . stop)
   let !lst = B.last sym
   if isSingleEsc lst
      then -- single-escaped symbol: read more stuff
@@ -719,9 +724,9 @@ basicPart = do
   -- parsing of yz
   chunk = do
     escapee <- A.take 1
-    done    <- atEnd
+    done    <- AC.atEnd
     if done then pure escapee else do
-      rest    <- takeWhile1 (not . terminatingChar)
+      rest    <- AC.takeWhile1 (not . terminatingChar)
       let !lst  = B.last rest
           !pref = escapee `B.append` rest
       if lst == backslash
@@ -732,12 +737,12 @@ basicPart = do
 
 terminatingChar :: Char -> Bool
 terminatingChar c =
-  c == ',' || c == '(' || c == ')' || c == '\'' || c == ';' || c == '`' || isSpace c
+  c == ',' || c == '(' || c == ')' || c == '\'' || c == ';' || c == '`' || AC.isSpace c
 
 list_ :: A.Parser Lisp
 list_ = do
   skipLispSpace
-  elems <- (lisp `sepBy` skipLispSpace) <* skipLispSpace <* char ')'
+  elems <- (lisp `AC.sepBy` skipLispSpace) <* skipLispSpace <* AC.char ')'
   return (List elems)
 
 doubleQuote :: Word8
@@ -754,13 +759,13 @@ verticalBar = 124
 
 skipLispSpace :: A.Parser ()
 skipLispSpace =
-  skipSpace >> many (comment >> skipSpace) >> return ()
+  AC.skipSpace >> many (comment >> AC.skipSpace) >> return ()
 
 comment :: A.Parser ()
 comment = do
-  _ <- char ';' >> many (notChar '\n')
-  end <- atEnd
-  if end then char '\n' >> return () else return ()
+  _ <- AC.char ';' >> many (AC.notChar '\n')
+  end <- AC.atEnd
+  if end then AC.char '\n' >> return () else return ()
 
 -- | Parse a string without a leading quote.
 lstring_ :: A.Parser T.Text
