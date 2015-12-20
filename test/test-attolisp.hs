@@ -6,7 +6,7 @@ module Main where
 
 import Control.Applicative
 import Data.AttoLisp
-import qualified Data.Attoparsec as A
+import qualified Data.Attoparsec.ByteString as A
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as B

@@ -17,7 +17,7 @@ extra-source-files:
 
 library
   build-depends:
-    attoparsec    >= 0.10    && < 0.13,
+    attoparsec    >= 0.10    && < 0.14,
     base          >= 4.2     && < 5,
     blaze-builder >= 0.3     && < 0.5,
     blaze-textual >= 0.1     && < 0.3,
@@ -35,12 +35,12 @@ library
 Test-Suite test
     Type:       exitcode-stdio-1.0
     Main-is:    test-attolisp.hs
-    Hs-Source-Dirs: test 
+    Hs-Source-Dirs: test
     Build-depends: atto-lisp
                  , attoparsec
                  , base
                  , bytestring
-                 , text 
+                 , text
                  , HUnit
                  , test-framework
                  , test-framework-hunit

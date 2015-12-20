@@ -363,7 +363,7 @@ instance TypeCast'' () a a where
 -- @data Foo = Foo Int deriving (Eq, Show)
 --
 -- parseFoo :: Lisp -> 'Parser' Foo
---parseFoo = struct \"foo\" Foo
+-- parseFoo = struct \"foo\" Foo
 --
 -- test = 'parseMaybe' parseFoo val == Just (Foo 23)
 --  where val = 'List' ['Symbol' \"foo\", 'Number' 23]
@@ -633,13 +633,13 @@ We are using the standard Common Lisp read table.
 The following characters are special:
 
   - whitespace: space, tab, newline, linefeed, return, page
-  
+
   - terminating: ( ) , ` ' " ;
 
   - escaping: \  and  |
 
 All remaining characters can be part of a symbol.  If a symbol looks
-like an number then it is one.  Otherwise it's just a symbol.
+like a number then it is one.  Otherwise it's just a symbol.
 
 -}
 
