@@ -154,6 +154,10 @@ instance MonadPlus Parser where
                                     in runParser a kf' ks
     {-# INLINE mplus #-}
 
+instance Semigroup (Parser a) where
+    (<>) = mappend
+    {-# INLINE (<>) #-}
+
 instance Monoid (Parser a) where
     mempty  = fail "mempty"
     {-# INLINE mempty #-}
@@ -206,6 +210,10 @@ instance Alternative Result where
     {-# INLINE empty #-}
     (<|>) = mplus
     {-# INLINE (<|>) #-}
+
+instance Semigroup (Result a) where
+    (<>) = mappend
+    {-# INLINE (<>) #-}
 
 instance Monoid (Result a) where
     mempty  = fail "mempty"
