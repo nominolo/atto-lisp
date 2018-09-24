@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings, Rank2Types, DeriveDataTypeable, BangPatterns #-}
 -- The following is for the ParseList stuff
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances,
-             UndecidableInstances, ScopedTypeVariables, OverlappingInstances, EmptyDataDecls #-}
+             UndecidableInstances, ScopedTypeVariables, OverlappingInstances,
+             CPP, EmptyDataDecls #-}
 -- | Efficient parsing and serialisation of S-Expressions (as used by Lisp).
 --
 -- This module is intended to be imported qualified, e.g.:
@@ -40,6 +41,7 @@ import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.List ( foldl' )
 import Data.Ratio ( Ratio )
 import Data.Monoid
+import Data.Semigroup (Semigroup(..))
 import Data.String
 import Data.Word ( Word, Word8, Word16, Word32, Word64 )
 import Numeric (showHex)
@@ -154,9 +156,11 @@ instance MonadPlus Parser where
                                     in runParser a kf' ks
     {-# INLINE mplus #-}
 
+#if MIN_VERSION_base(4,9,0)
 instance Semigroup (Parser a) where
     (<>) = mappend
     {-# INLINE (<>) #-}
+#endif
 
 instance Monoid (Parser a) where
     mempty  = fail "mempty"
@@ -211,9 +215,11 @@ instance Alternative Result where
     (<|>) = mplus
     {-# INLINE (<|>) #-}
 
+#if MIN_VERSION_base(4,9,0)
 instance Semigroup (Result a) where
     (<>) = mappend
     {-# INLINE (<>) #-}
+#endif
 
 instance Monoid (Result a) where
     mempty  = fail "mempty"
