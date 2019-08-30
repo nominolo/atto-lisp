@@ -199,6 +199,8 @@ instance Monad Result where
     {-# INLINE (>>=) #-}
 
 instance MonadFail Result where
+    fail = error
+    {-# INLINE fail #-}
 
 instance Applicative Result where
     pure  = return
