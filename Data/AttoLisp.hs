@@ -129,6 +129,8 @@ instance Monad Parser where
     {-# INLINE (>>=) #-}
     return a = Parser $ \_kf ks -> ks a
     {-# INLINE return #-}
+
+instance MonadFail Parser where
     fail msg = Parser $ \kf _ks -> kf msg
     {-# INLINE fail #-}
 
@@ -195,6 +197,8 @@ instance Monad Result where
     Success a >>= k = k a
     Error err >>= _ = Error err
     {-# INLINE (>>=) #-}
+
+instance MonadFail Result where
 
 instance Applicative Result where
     pure  = return
