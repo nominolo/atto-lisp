@@ -1,3 +1,7 @@
+0.2.3.0
+
+ * Support GHC 8.8. Minimum base version 4.9
+
 0.2.2.2
 
  * Allow attoparsec-0.13

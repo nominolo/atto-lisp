@@ -35,6 +35,8 @@ import Blaze.Text (double, integral)
 import Control.Applicative
 import Control.DeepSeq (NFData(..))
 import Control.Monad
+import Control.Monad.Fail
+import qualified Control.Monad.Fail as Fail
 import Data.Attoparsec.Number (Number(..))
 import Data.Data
 import Data.Int  ( Int8, Int16, Int32, Int64 )
@@ -146,13 +148,13 @@ instance Applicative Parser where
     {-# INLINE (<*>) #-}
     
 instance Alternative Parser where
-    empty = fail "empty"
+    empty = Fail.fail "empty"
     {-# INLINE empty #-}
     (<|>) = mplus
     {-# INLINE (<|>) #-}
 
 instance MonadPlus Parser where
-    mzero = fail "mzero"
+    mzero = Fail.fail "mzero"
     {-# INLINE mzero #-}
     mplus a b = Parser $ \kf ks -> let kf' _ = runParser b kf ks
                                     in runParser a kf' ks
@@ -165,7 +167,7 @@ instance Semigroup (Parser a) where
 #endif
 
 instance Monoid (Parser a) where
-    mempty  = fail "mempty"
+    mempty  = Fail.fail "mempty"
     {-# INLINE mempty #-}
     mappend = mplus
     {-# INLINE mappend #-}
@@ -209,7 +211,7 @@ instance Applicative Result where
     {-# INLINE (<*>) #-}
 
 instance MonadPlus Result where
-    mzero = fail "mzero"
+    mzero = Fail.fail "mzero"
     {-# INLINE mzero #-}
     mplus a@(Success _) _ = a
     mplus _ b             = b
@@ -228,7 +230,7 @@ instance Semigroup (Result a) where
 #endif
 
 instance Monoid (Result a) where
-    mempty  = fail "mempty"
+    mempty  = Fail.fail "mempty"
     {-# INLINE mempty #-}
     mappend = mplus
     {-# INLINE mappend #-}
@@ -316,7 +318,7 @@ typeMismatch :: String -- ^ The name of the type you are trying to parse.
              -> Lisp  -- ^ The actual value encountered.
              -> Parser a
 typeMismatch expected actual =
-    fail $ "when expecting a " ++ expected ++ ", encountered " ++ name ++
+    Fail.fail $ "when expecting a " ++ expected ++ ", encountered " ++ name ++
            " instead"
   where
     name = case actual of
@@ -339,14 +341,14 @@ class ParseList' f a b | f a -> b where
 
 instance (FromLisp a, IsFunction b f, ParseList' f b c, ParseList b c)
   => ParseList' HTrue (a -> b) c where
-  parseList' _ msg _ []     = fail $ "Too few arguments for object: " ++ msg
+  parseList' _ msg _ []     = Fail.fail $ "Too few arguments for object: " ++ msg
   parseList' _ msg f (x:xs) = do
     y <- parseLisp x
     parseList msg (f y) xs
 
 instance ParseList' HFalse a a where
   parseList' _ _msg r [] = return r
-  parseList' _ msg  _ (_:_) = fail $ "Too many arguments for object: " ++ msg
+  parseList' _ msg  _ (_:_) = Fail.fail $ "Too many arguments for object: " ++ msg
 
 data HTrue
 data HFalse
@@ -620,11 +622,11 @@ instance (FromLisp a, FromLisp b) => FromLisp (a, b) where
   parseLisp (List l) =
     case l of
       [a, b] -> (,) <$> parseLisp a <*> parseLisp b
-      _ -> fail $ "Cannot unpack list into a pair"
+      _ -> Fail.fail $ "Cannot unpack list into a pair"
   parseLisp (DotList hds b) =
     case hds of
       [a] -> (,) <$> parseLisp a <*> parseLisp b
-      _ -> fail $ "Cannot unpack dotted list into a pair"
+      _ -> Fail.fail $ "Cannot unpack dotted list into a pair"
   parseLisp e = typeMismatch "pair" e
   {-# INLINE parseLisp #-}
 
@@ -636,7 +638,7 @@ instance (FromLisp a, FromLisp b, FromLisp c) => FromLisp (a, b, c) where
   parseLisp (List l) =
     case l of
       [a, b, c] -> (,,) <$> parseLisp a <*> parseLisp b <*> parseLisp c
-      _ -> fail $ "Cannot unpack list into a 3-tuple"
+      _ -> Fail.fail $ "Cannot unpack list into a 3-tuple"
   parseLisp e = typeMismatch "3-tuple" e
   {-# INLINE parseLisp #-}
 
@@ -681,7 +683,7 @@ number :: A.Parser Lisp
 number = do
   sym <- AC.takeWhile1 (not . terminatingChar)
   case A.parseOnly AC.number sym of
-      Left _  -> fail "Not a number"
+      Left _  -> Fail.fail "Not a number"
       Right n -> return (Number n)
 
 symbol :: A.Parser Lisp
@@ -798,7 +800,7 @@ lstring_ = {-# SCC "jstring_" #-} do
   if backslash `B.elem` s
     then case Z.parse unescapeString s of
            Right r  -> return (T.decodeUtf8 r)
-           Left err -> fail err
+           Left err -> Fail.fail err
     else return (T.decodeUtf8 s)
 {-# INLINE lstring_ #-}
 
@@ -814,7 +816,7 @@ unescapeString = Blaze.toByteString <$> go mempty where
                          Just i -> i
                          _      -> 255
           if slash /= backslash || escape == 255
-            then fail "invalid JSON escape sequence"
+            then Fail.fail "invalid JSON escape sequence"
             else do
             let cont m = go (acc `mappend` Blaze.fromByteString h `mappend` m)
                 {-# INLINE cont #-}

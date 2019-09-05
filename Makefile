@@ -1,10 +1,12 @@
-STACK_PREVIOUS=stack-lts11.yaml
-STACK_LATEST=stack-lts12.yaml
+STACK_PREVIOUS=stack-lts12.yaml
+STACK_LATEST=stack-lts14.yaml
 
 .PHONY: test
 test:
 	stack test --stack-yaml=$(STACK_PREVIOUS)
 	stack test --stack-yaml=$(STACK_LATEST)
+
+
 
 release:
 	stack sdist --stack-yaml=$(STACK_LATEST)
