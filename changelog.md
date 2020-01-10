@@ -1,3 +1,7 @@
+0.2.2.4
+
+ * Any lisp expression can be quoted.
+
 0.2.2.2
 
  * Allow attoparsec-0.13

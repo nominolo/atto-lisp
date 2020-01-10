@@ -661,7 +661,7 @@ like a number then it is one.  Otherwise it's just a symbol.
 lisp :: A.Parser Lisp
 lisp = skipLispSpace *>
   (AC.char '(' *> list_ <|>
-   quoted <$> (AC.char '\'' *> AC.char '(' *> list_) <|>
+   quoted <$> (AC.char '\'' *> lisp) <|>
    String <$> (AC.char '"' *> lstring_) <|>
    atom)
  where
