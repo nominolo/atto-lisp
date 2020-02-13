@@ -1,5 +1,5 @@
 name:                   atto-lisp
-version:                0.2.2.3
+version:                0.3.0.0
 license:                BSD3
 license-file:           LICENSE
 author:                 Thomas Schilling <nominolo@googlemail.com>
@@ -24,7 +24,8 @@ library
     bytestring   ,
     containers   ,
     deepseq      ,
-    text          
+    scientific   ,
+    text
 
   exposed-modules:
     Data.AttoLisp

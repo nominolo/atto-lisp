@@ -17,14 +17,14 @@ module Data.AttoLisp
     Failure, Success, Parser,
     parse, parseMaybe, parseEither, typeMismatch,
 
-    ToLisp(..), 
+    ToLisp(..),
 
     -- * Constructors and destructors
     mkStruct,  struct,
 
     -- * Encoding and parsing
     encode, fromLispExpr,
-    
+
     lisp, atom,
   )
 where
@@ -35,12 +35,12 @@ import Blaze.Text (double, integral)
 import Control.Applicative
 import Control.DeepSeq (NFData(..))
 import Control.Monad
-import Data.Attoparsec.Number (Number(..))
 import Data.Data
 import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.List ( foldl' )
 import Data.Ratio ( Ratio )
 import Data.Monoid
+import Data.Scientific (Scientific(..), floatingOrInteger, fromFloatDigits, toRealFloat)
 import Data.Semigroup (Semigroup(..))
 import Data.String
 import Data.Word ( Word, Word8, Word16, Word32, Word64 )
@@ -65,10 +65,10 @@ import qualified Data.Map as M
 -- "atto-lisp" will switch to the @Scientific@ type from the "scientific"
 -- package.
 data Lisp
-  = Symbol T.Text   -- ^ A symbol (including keyword)
-  | String T.Text   -- ^ A string.
-  | Number Number   -- ^ A number
-  | List [Lisp]     -- ^ A proper list: @(foo x 42)@
+  = Symbol T.Text        -- ^ A symbol (including keyword)
+  | String T.Text        -- ^ A string.
+  | Number Scientific    -- ^ A number
+  | List [Lisp]          -- ^ A proper list: @(foo x 42)@
   | DotList [Lisp] Lisp  -- ^ A list with a non-nil tail: @(foo x
                          -- . 42)@.  The list argument must be
                          -- non-empty and the tail must be non-'nil'.
@@ -142,7 +142,7 @@ instance Applicative Parser where
     {-# INLINE pure #-}
     (<*>) = apP
     {-# INLINE (<*>) #-}
-    
+
 instance Alternative Parser where
     empty = fail "empty"
     {-# INLINE empty #-}
@@ -244,9 +244,9 @@ parseEither m v = runParser (m v) Left Right
 {-# INLINE parseEither #-}
 
 --test_parse001 =
---  parseMaybe 
+--  parseMaybe
 
---nth :: [Lisp] -> 
+--nth :: [Lisp] ->
 
 -- | Create a Lisp struct in a standardised format.
 --
@@ -275,9 +275,9 @@ class ToLisp a where
 -- An example type and instance:
 --
 -- @data Coord { x :: Double, y :: Double }
--- 
+--
 -- instance FromLisp Coord where
---   parseLisp ('DotList' [x] y) = pure (Coord x y) 
+--   parseLisp ('DotList' [x] y) = pure (Coord x y)
 --   \-- A non-DotList value is of the wrong shape, so use mzero to fail.
 --   parseLisp _          = 'mzero'
 -- @
@@ -478,14 +478,11 @@ instance FromLisp [Char] where
   {-# INLINE parseLisp #-}
 
 instance ToLisp Double where
-  toLisp = Number . D
+  toLisp = Number . fromFloatDigits
   {-# INLINE toLisp #-}
 
 instance FromLisp Double where
-  parseLisp (Number n) =
-    case n of
-      D d -> pure d
-      I i -> pure (fromIntegral i)
+  parseLisp (Number n) = pure (toRealFloat n)
   parseLisp e | isNull e = pure (0/0)  -- useful?
   parseLisp e = typeMismatch "Double" e
   {-# INLINE parseLisp #-}
@@ -495,21 +492,18 @@ instance ToLisp Float where
   {-# INLINE toLisp #-}
 
 instance FromLisp Float where
-  parseLisp (Number n) =
-    case n of
-      D d -> pure (fromRational (toRational d))
-      I i -> pure (fromIntegral i)
+  parseLisp (Number n) = pure (toRealFloat n)
   parseLisp e | isNull e = pure (0/0)  -- useful?
   parseLisp e = typeMismatch "Float" e
   {-# INLINE parseLisp #-}
 
-instance ToLisp Number where
+instance ToLisp Scientific where
   toLisp = Number
   {-# INLINE toLisp #-}
 
-instance FromLisp Number where
+instance FromLisp Scientific where
   parseLisp (Number n) = pure n
-  parseLisp e | isNull e = pure (D (0/0))  -- useful?
+  parseLisp e | isNull e = pure (fromFloatDigits (0/0))  -- useful?
   parseLisp e = typeMismatch "Number" e
   {-# INLINE parseLisp #-}
 
@@ -518,10 +512,7 @@ instance ToLisp (Ratio Integer) where
   {-# INLINE toLisp #-}
 
 instance FromLisp (Ratio Integer) where
-  parseLisp (Number n) =
-    case n of
-      D d -> pure (toRational d)
-      I i -> pure (fromIntegral i)
+  parseLisp (Number n) = pure (toRational n)
   parseLisp e = typeMismatch "Ratio Integer" e
   {-# INLINE parseLisp #-}
 
@@ -674,7 +665,7 @@ atom = number <|> symbol
 number :: A.Parser Lisp
 number = do
   sym <- AC.takeWhile1 (not . terminatingChar)
-  case A.parseOnly AC.number sym of
+  case A.parseOnly AC.scientific sym of
       Left _  -> fail "Not a number"
       Right n -> return (Number n)
 
@@ -839,9 +830,9 @@ fromLispExpr (String str) = string str
    escape c
         | c < '\x20' = Blaze.fromString $ "\\x" ++ replicate (2 - length h) '0' ++ h
         | otherwise  = fromChar c
-        where h = showHex (fromEnum c) "" 
+        where h = showHex (fromEnum c) ""
 fromLispExpr (Symbol t) = Blaze.fromText t
-fromLispExpr (Number n) = fromNumber n
+fromLispExpr (Number n) = fromScientific n
 fromLispExpr (List []) = Blaze.fromByteString "nil"
 fromLispExpr (List l) = enc_list l (fromChar ')')
 fromLispExpr (DotList l t) =
@@ -852,9 +843,10 @@ enc_list [] tl = fromChar '(' `mappend` tl
 enc_list (x:xs) tl = fromChar '(' `mappend` fromLispExpr x `mappend` foldr f tl xs
  where f e t = fromChar ' ' `mappend` fromLispExpr e `mappend` t
 
-fromNumber :: Number -> Blaze.Builder
-fromNumber (I i) = integral i
-fromNumber (D d) = double d
+fromScientific :: Scientific -> Blaze.Builder
+fromScientific n = case floatingOrInteger n of
+  (Left d) -> double d
+  (Right i) -> integral i
 
 encode :: ToLisp a => a -> Lazy.ByteString
 encode = Blaze.toLazyByteString . fromLispExpr . toLisp
